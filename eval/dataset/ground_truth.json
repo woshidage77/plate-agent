@@ -1,0 +1,262 @@
+[
+  {
+    "id": 1,
+    "image": "eval/dataset/test_plates/plate_001.jpg",
+    "plate_number": "贵U77889",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 2,
+    "image": "eval/dataset/test_plates/plate_002.jpg",
+    "plate_number": "晋P33445",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 3,
+    "image": "eval/dataset/test_plates/plate_003.jpg",
+    "plate_number": "黑K22334",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 4,
+    "image": "eval/dataset/test_plates/plate_004.jpg",
+    "plate_number": "宁B66778",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 5,
+    "image": "eval/dataset/test_plates/plate_005.jpg",
+    "plate_number": "赣X66778",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 6,
+    "image": "eval/dataset/test_plates/plate_006.jpg",
+    "plate_number": "闽G11223",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 7,
+    "image": "eval/dataset/test_plates/plate_007.jpg",
+    "plate_number": "鲁F97531",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 8,
+    "image": "eval/dataset/test_plates/plate_008.jpg",
+    "plate_number": "辽M88990",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 9,
+    "image": "eval/dataset/test_plates/plate_009.jpg",
+    "plate_number": "吉L55667",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 10,
+    "image": "eval/dataset/test_plates/plate_010.jpg",
+    "plate_number": "陕Q66778",
+    "conditions": {
+      "type": "clear"
+    }
+  },
+  {
+    "id": 11,
+    "image": "eval/dataset/test_plates/plate_011.jpg",
+    "plate_number": "渝J99001",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.71
+    }
+  },
+  {
+    "id": 12,
+    "image": "eval/dataset/test_plates/plate_012.jpg",
+    "plate_number": "蒙A33445",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.87
+    }
+  },
+  {
+    "id": 13,
+    "image": "eval/dataset/test_plates/plate_013.jpg",
+    "plate_number": "桂E44556",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.3
+    }
+  },
+  {
+    "id": 14,
+    "image": "eval/dataset/test_plates/plate_014.jpg",
+    "plate_number": "湘W33445",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.86
+    }
+  },
+  {
+    "id": 15,
+    "image": "eval/dataset/test_plates/plate_015.jpg",
+    "plate_number": "甘R99001",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.79
+    }
+  },
+  {
+    "id": 16,
+    "image": "eval/dataset/test_plates/plate_016.jpg",
+    "plate_number": "新C99001",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.54
+    }
+  },
+  {
+    "id": 17,
+    "image": "eval/dataset/test_plates/plate_017.jpg",
+    "plate_number": "沪B67890",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.41
+    }
+  },
+  {
+    "id": 18,
+    "image": "eval/dataset/test_plates/plate_018.jpg",
+    "plate_number": "冀N00112",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.97
+    }
+  },
+  {
+    "id": 19,
+    "image": "eval/dataset/test_plates/plate_019.jpg",
+    "plate_number": "云T44556",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.54
+    }
+  },
+  {
+    "id": 20,
+    "image": "eval/dataset/test_plates/plate_020.jpg",
+    "plate_number": "粤C24680",
+    "conditions": {
+      "type": "blur",
+      "blur": 0.36
+    }
+  },
+  {
+    "id": 21,
+    "image": "eval/dataset/test_plates/plate_021.jpg",
+    "plate_number": "青S11223",
+    "conditions": {
+      "type": "tilt",
+      "angle": -12.1
+    }
+  },
+  {
+    "id": 22,
+    "image": "eval/dataset/test_plates/plate_022.jpg",
+    "plate_number": "藏D11223",
+    "conditions": {
+      "type": "tilt",
+      "angle": 10.4
+    }
+  },
+  {
+    "id": 23,
+    "image": "eval/dataset/test_plates/plate_023.jpg",
+    "plate_number": "浙E86420",
+    "conditions": {
+      "type": "tilt",
+      "angle": 3.1
+    }
+  },
+  {
+    "id": 24,
+    "image": "eval/dataset/test_plates/plate_024.jpg",
+    "plate_number": "琼Z11223",
+    "conditions": {
+      "type": "tilt",
+      "angle": 9.2
+    }
+  },
+  {
+    "id": 25,
+    "image": "eval/dataset/test_plates/plate_025.jpg",
+    "plate_number": "豫H44556",
+    "conditions": {
+      "type": "tilt",
+      "angle": 6.9
+    }
+  },
+  {
+    "id": 26,
+    "image": "eval/dataset/test_plates/plate_026.jpg",
+    "plate_number": "川I77889",
+    "conditions": {
+      "type": "noise",
+      "noise": 0.063
+    }
+  },
+  {
+    "id": 27,
+    "image": "eval/dataset/test_plates/plate_027.jpg",
+    "plate_number": "皖Y99001",
+    "conditions": {
+      "type": "noise",
+      "noise": 0.098
+    }
+  },
+  {
+    "id": 28,
+    "image": "eval/dataset/test_plates/plate_028.jpg",
+    "plate_number": "京A12345",
+    "conditions": {
+      "type": "noise",
+      "noise": 0.05
+    }
+  },
+  {
+    "id": 29,
+    "image": "eval/dataset/test_plates/plate_029.jpg",
+    "plate_number": "苏D13579",
+    "conditions": {
+      "type": "noise",
+      "noise": 0.064
+    }
+  },
+  {
+    "id": 30,
+    "image": "eval/dataset/test_plates/plate_030.jpg",
+    "plate_number": "鄂V00112",
+    "conditions": {
+      "type": "noise",
+      "noise": 0.086
+    }
+  }
+]

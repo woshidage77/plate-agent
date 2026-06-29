@@ -1,0 +1,28 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Model files (large binaries)
+agent/tools/svm_model.pkl
+
+# ChromaDB data
+agent/chroma_data/
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,98 @@
+[
+  {
+    "plate_number": "京A12345",
+    "type": "违章未处理",
+    "date": "2024-11-15",
+    "description": "超速50%以上，记12分，罚款2000元",
+    "status": "未处理",
+    "source": "交管系统"
+  },
+  {
+    "plate_number": "粤B88888",
+    "type": "肇事逃逸",
+    "date": "2024-10-28",
+    "description": "肇事逃逸致人重伤，全城通缉",
+    "status": "在逃",
+    "source": "公安局"
+  },
+  {
+    "plate_number": "沪C54321",
+    "type": "盗抢车辆",
+    "date": "2024-09-03",
+    "description": "被盗车辆，原车主已报案",
+    "status": "未找回",
+    "source": "110接警"
+  },
+  {
+    "plate_number": "浙A66666",
+    "type": "套牌车",
+    "date": "2024-08-12",
+    "description": "涉嫌套用他人号牌，多次违章记录与真实车主不符",
+    "status": "调查中",
+    "source": "交警大队"
+  },
+  {
+    "plate_number": "苏E99999",
+    "type": "报废车上路",
+    "date": "2024-07-20",
+    "description": "车辆已达强制报废标准仍上路行驶",
+    "status": "待查扣",
+    "source": "车管所"
+  },
+  {
+    "plate_number": "鲁B77777",
+    "type": "违章王",
+    "date": "2024-06-01",
+    "description": "累计未处理违章42条，罚款总额32000元",
+    "status": "未处理",
+    "source": "交管系统"
+  },
+  {
+    "plate_number": "闽D55555",
+    "type": "肇事逃逸",
+    "date": "2024-05-14",
+    "description": "追尾后驾车逃逸，监控已记录",
+    "status": "在逃",
+    "source": "监控中心"
+  },
+  {
+    "plate_number": "豫A44444",
+    "type": "盗抢车辆",
+    "date": "2024-04-08",
+    "description": "市区停车场被盗，GPS最后定位在城郊",
+    "status": "未找回",
+    "source": "110接警"
+  },
+  {
+    "plate_number": "川A33333",
+    "type": "违章未处理",
+    "date": "2024-03-22",
+    "description": "闯红灯6次、逆行3次，累计记分36分",
+    "status": "未处理",
+    "source": "交管系统"
+  },
+  {
+    "plate_number": "黑A22222",
+    "type": "套牌车",
+    "date": "2024-02-17",
+    "description": "套用号牌在高速多次超速，真车主在异地",
+    "status": "调查中",
+    "source": "高速交警"
+  },
+  {
+    "plate_number": "津A11111",
+    "type": "肇事逃逸",
+    "date": "2024-01-30",
+    "description": "撞毁护栏后逃逸，现场遗留碎片已取证",
+    "status": "在逃",
+    "source": "交警大队"
+  },
+  {
+    "plate_number": "渝A00000",
+    "type": "违章王",
+    "date": "2023-12-05",
+    "description": "累计未处理违章56条，含酒驾记录",
+    "status": "未处理",
+    "source": "交管系统"
+  }
+]
