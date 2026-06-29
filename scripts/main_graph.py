@@ -1,4 +1,4 @@
-﻿"""PlateAgent Day 4 — Session + Memory 验证
+"""PlateAgent Day 4 — Session + Memory 验证
 
 验证目标：
     1. Session 持久化：同一 session_id 的多轮对话共享上下文

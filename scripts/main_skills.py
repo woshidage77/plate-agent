@@ -1,4 +1,4 @@
-﻿"""PlateAgent Day 10 — Skills 系统演示脚本
+"""PlateAgent Day 10 — Skills 系统演示脚本
 
 演示：
     1. SKILL.md 加载与解析
@@ -13,6 +13,8 @@
 
 import logging
 
+
+import sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).parent.parent))
 from agent.skill_loader import SkillLoader
 
 logging.basicConfig(

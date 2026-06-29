@@ -1,4 +1,4 @@
-﻿"""PlateAgent Day 5 — ChromaDB RAG 知识库验证
+"""PlateAgent Day 5 — ChromaDB RAG 知识库验证
 
 验证目标：
     1. 黑名单精确匹配 + 模糊匹配
@@ -17,6 +17,8 @@ import os
 # 确保项目根目录在 path 中
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
+import sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).parent.parent))
 from agent.knowledge.loader import get_knowledge_base, reset_knowledge_base
 from agent.tools.knowledge import tool_search_blacklist, tool_lookup_confusion
 

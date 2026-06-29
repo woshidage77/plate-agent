@@ -1,4 +1,4 @@
-﻿"""PlateAgent Day 9 验证脚本 — OpenTelemetry + TokenTracker 端到端验证
+"""PlateAgent Day 9 验证脚本 — OpenTelemetry + TokenTracker 端到端验证
 
 验证项目：
     1. init_telemetry() 输出到控制台
@@ -13,6 +13,8 @@
 import asyncio
 import logging
 
+
+import sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).parent.parent))
 from agent.telemetry import init_telemetry, get_tracer, trace_node, trace_block
 from agent.token_tracker import TokenTracker, get_global_tracker, reset_global_tracker
 
