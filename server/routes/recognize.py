@@ -1,21 +1,9 @@
-"""POST /api/recognize — SSE 流式车牌识别
-
-直接走 GraphAgent 识别流水线，不走闲聊入口。
-适合前端直接发起识别请求的场景。
-
-SSE 事件类型：
-    node_progress — 每个图节点的进度
-    text_delta    — 流式文本片段
-    tool_call     — 工具调用
-    tool_result   — 工具返回
-    final         — 最终识别结果
-    error         — 错误
-    done          — 流结束
-"""
-
+"""POST /api/recognize - SSE streaming plate recognition"""
 import json
 import uuid
 import logging
+import os
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends
@@ -32,6 +20,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["recognize"])
 
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
+def _resolve_path(image_path: str) -> str:
+    """Resolve relative paths to absolute paths relative to project root."""
+    if os.path.isabs(image_path):
+        return image_path
+    resolved = (_PROJECT_ROOT / image_path).resolve()
+    return str(resolved)
+
 
 async def _stream_recognize_events(
     runner,
@@ -40,8 +38,7 @@ async def _stream_recognize_events(
     session_id: str,
     image_path: str,
 ) -> AsyncGenerator[dict, None]:
-    """核心：走 GraphAgent 识别流水线，流式推送进度。"""
-    message = "请识别这张车牌图片：" + image_path
+    message = "please recognize this plate image: " + image_path
     user_content = Content(parts=[Part.from_text(text=message)])
 
     try:
@@ -56,7 +53,6 @@ async def _stream_recognize_events(
             if not event.content or not event.content.parts:
                 continue
 
-            # 流式文本
             if event.partial:
                 for part in event.content.parts:
                     if part.text:
@@ -66,7 +62,6 @@ async def _stream_recognize_events(
                         }
                 continue
 
-            # 完整事件
             for part in event.content.parts:
                 if part.thought:
                     continue
@@ -98,13 +93,12 @@ async def _stream_recognize_events(
                     }
 
     except Exception as e:
-        logger.exception("识别流水线异常: %s", e)
+        logger.exception("recognition pipeline error: %s", e)
         yield {
             "event": "error",
             "data": json.dumps({"message": str(e)}, ensure_ascii=False),
         }
 
-    # 读取 session state 获取最终结果
     try:
         session = await runner.session_service.get_session(
             app_name=app_name, user_id=user_id, session_id=session_id
@@ -115,7 +109,7 @@ async def _stream_recognize_events(
             final_plate = session.state.get("final_plate", "")
             last_response = session.state.get("last_response", "")
 
-            if "黑名单命中" in last_response:
+            if "Blacklist hit" in last_response:
                 blacklist_hit = True
 
             yield {
@@ -140,16 +134,10 @@ async def recognize(
     req: RecognizeRequest,
     chat_runner=Depends(get_runner),
 ):
-    """单张车牌识别接口 — SSE 流式返回进度。
-
-    使用 GraphAgent 确定性流水线（预处理→定位→分割→识别）。
-    复用 chat Runner 的 Session/Memory 服务以保持跨端点一致性。
-    """
     app_name = get_app_name()
     user_id = req.user_id
     session_id = req.session_id or str(uuid.uuid4())
 
-    # 复用 chat Runner 的 session/memory 服务，但用 GraphAgent 做识别
     session_service = chat_runner.session_service
     memory_service = chat_runner.memory_service
 
@@ -160,12 +148,13 @@ async def recognize(
         memory_service=memory_service,
     )
 
-    # 创建 session，设置初始 image_path
+    resolved_path = _resolve_path(req.image_path)
+
     await session_service.create_session(
         app_name=app_name,
         user_id=user_id,
         session_id=session_id,
-        state={"image_path": req.image_path},
+        state={"image_path": resolved_path},
     )
 
     async def event_generator():
@@ -174,7 +163,7 @@ async def recognize(
             app_name=app_name,
             user_id=user_id,
             session_id=session_id,
-            image_path=req.image_path,
+            image_path=resolved_path,
         ):
             yield sse_dict
 

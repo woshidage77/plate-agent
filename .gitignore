@@ -32,3 +32,9 @@ plate_records.db
 # Frontend
 frontend/node_modules/
 frontend/dist/
+
+# Tesseract language data
+tessdata/
+
+# Test images junction
+test_images/

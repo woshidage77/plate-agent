@@ -1,18 +1,18 @@
-"""PlateAgent GraphAgent — 6节点确定性流水线 + 条件路由
+﻿"""PlateAgent GraphAgent — 6节点确定性流水线 + Tesseract OCR 识别
 
-Day 11 增强（P1）：
-    - human_review_node：极低置信度 (< 0.5) 触发人工确认（interrupt 模式）
-    - recognize_node：Parallel 并行 SVM（asyncio.gather）
+v2 变更：
+    - 识别引擎从逐字符 SVM 切换为 Tesseract 整牌 OCR
+    - 保留条件路由（human_review / llm_verify / format_output）
 
-图结构（Day 11 最终版）：
-    preprocess → locate → segment → recognize
-                                         │
-                    ┌────────────────────┼────────────────────┐
-                    │                    │                    │
+图结构（v2）：
+    preprocess -> locate -> segment -> recognize
+                                          |
+                     +--------------------+--------------------+
+                     |                    |                    |
               needs_human=true    needs_verify=true    otherwise
-                    │                    │                    │
+                     |                    |                    |
               human_review         llm_verify           format_output
-                    │                    │
+                     |                    |
               format_output         format_output
 """
 
@@ -49,7 +49,7 @@ from .tools.preprocess import (
 )
 from .tools.locate import tool_morphology_locate, tool_color_locate
 from .tools.segment import tool_vertical_projection
-from .tools.recognize import tool_svm_predict, tool_llm_verify
+from .tools.recognize import tool_tesseract_ocr, tool_svm_predict, tool_llm_verify
 from .tools.knowledge import tool_search_blacklist, tool_query_history, tool_lookup_confusion
 
 
@@ -68,6 +68,7 @@ def _create_chat_agent() -> LlmAgent:
         FunctionTool(tool_morphology_locate),
         FunctionTool(tool_color_locate),
         FunctionTool(tool_vertical_projection),
+        FunctionTool(tool_tesseract_ocr),
         FunctionTool(tool_svm_predict),
         FunctionTool(tool_llm_verify),
         FunctionTool(tool_search_blacklist),
@@ -89,15 +90,12 @@ def _create_chat_agent() -> LlmAgent:
 # ── 条件路由函数 ──
 
 def _route_after_recognize(state: PlateState) -> str:
-    """Day 11 三级路由：根据置信度分派到不同路径。
+    """三级路由：根据置信度分派到不同路径。
 
     State 字段：
-        recognize_chars[i].confidence < 0.5  → human_review (中断人工确认)
-        needs_llm_verify=True                → llm_verify   (LLM 复核)
-        otherwise                            → format_output (直接输出)
-
-    这是犀牛鸟考点「条件路由」的完整展示——
-    不是简单的 if/else，而是基于 state 的多分支图路由。
+        recognize_chars[i].confidence < 0.5   -> human_review (中断人工确认)
+        needs_llm_verify=True                 -> llm_verify   (RAG 复核)
+        otherwise                             -> format_output (直接输出)
     """
     recognize_chars = state.get("recognize_chars", [])
 
@@ -117,20 +115,14 @@ def _route_after_recognize(state: PlateState) -> str:
 
 # ── 图构建 ──
 def _build_recognition_graph() -> StateGraph:
-    """构建车牌识别 6 节点流水线图（Day 11 最终版）。
-
-    节点：preprocess → locate → segment → recognize
-            ├── human_review (极低置信度)
-            ├── llm_verify   (低置信度)
-            └── format_output (高置信度)
-    """
+    """构建车牌识别 6 节点流水线图（v2: Tesseract OCR 版）。"""
     graph = StateGraph(PlateState)
 
     # ── 添加节点 ──
     graph.add_node(
         "preprocess", preprocess_node,
         config=NodeConfig(name="preprocess",
-                         description="高斯滤波→灰度→二值→Canny→仿射矫正"),
+                         description="高斯滤波->灰度->二值->Canny->仿射校正"),
     )
     graph.add_node(
         "locate", locate_node,
@@ -145,9 +137,8 @@ def _build_recognition_graph() -> StateGraph:
     graph.add_node(
         "recognize", recognize_node,
         config=NodeConfig(name="recognize",
-                         description="Parallel SVM 并行识别 + 置信度评估"),
+                         description="Tesseract OCR 整牌识别 + 置信度评估"),
     )
-    # Day 11 新增：人工确认节点
     graph.add_node(
         "human_review", human_review_node,
         config=NodeConfig(name="human_review",
@@ -156,7 +147,7 @@ def _build_recognition_graph() -> StateGraph:
     graph.add_node(
         "llm_verify", llm_verify_node,
         config=NodeConfig(name="llm_verify",
-                         description="LLM 二次校验（含 retry + timeout + 降级）"),
+                         description="RAG 混淆字符二次校验"),
     )
     graph.add_node(
         "format_output", format_output_node,
@@ -172,14 +163,14 @@ def _build_recognition_graph() -> StateGraph:
     graph.add_edge("locate", "segment")
     graph.add_edge("segment", "recognize")
 
-    # Day 11: 三级条件路由
+    # 三级条件路由
     graph.add_conditional_edges(
         "recognize",
         _route_after_recognize,
         {
-            "human":  "human_review",   # 极低置信度 → 人工确认
-            "verify": "llm_verify",     # 低置信度   → LLM 复核
-            "output": "format_output",  # 高置信度   → 直接输出
+            "human":  "human_review",   # 极低置信度 -> 人工确认
+            "verify": "llm_verify",     # 低置信度    -> RAG 复核
+            "output": "format_output",  # 高置信度    -> 直接输出
         },
     )
     graph.add_edge("human_review", "format_output")
@@ -189,14 +180,11 @@ def _build_recognition_graph() -> StateGraph:
 
 
 def create_graph_agent() -> GraphAgent:
-    """创建 PlateAgent GraphAgent 完整实例（Day 11 版本）。
-
-    6 节点流水线 + 三级条件路由 + Parallel SVM + 人工确认 + 容错
-    """
+    """创建 PlateAgent GraphAgent 完整实例（v2: Tesseract OCR）。"""
     graph = _build_recognition_graph()
     return GraphAgent(
         name="plate_recognition",
-        description="车牌识别流水线 v2：预处理→定位→分割→Parallel SVM→{人工/LLM}确认→输出",
+        description="车牌识别流水线 v2：预处理->定位->分割->Tesseract OCR->{人工/RAG}确认->输出",
         graph=graph.compile(),
     )
 

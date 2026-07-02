@@ -1,141 +1,95 @@
-"""车牌字符识别 FunctionTools — 对应原文 3.4 节
-
-Day 11 更新：加载真实训练的 SVM 模型（99.5% 测试准确率），
-替换原来的 char="?" / confidence=0.0 占位实现。
-"""
-
-import json
+"""车牌字符识别 — Tesseract OCR 版，替换破损的 SVM 模型"""
 import logging
-import pickle
+import os
 from pathlib import Path
-
-import cv2
-import numpy as np
+import pytesseract
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# ── 模型路径 ──
-_MODEL_DIR = Path(__file__).parent
-_MODEL_PATH = _MODEL_DIR / "svm_model.pkl"
-_LABELS_PATH = _MODEL_DIR / "svm_labels.json"
+_TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+_TESSDATA_DIR = Path(__file__).parent.parent.parent / "tessdata"
 
-# ── 模块级缓存 ──
-_model = None
-_label_map: dict[int, str] = {}
-
-# ── HOG 参数（需与训练时一致） ──
-_hog = cv2.HOGDescriptor(
-    _winSize=(32, 32),
-    _blockSize=(16, 16),
-    _blockStride=(8, 8),
-    _cellSize=(8, 8),
-    _nbins=9,
-)
+_PROVINCES = set("\u4eac\u6d25\u6caa\u6e1d\u5180\u8c6b\u4e91\u8fbd\u9ed1\u6e58\u7696\u9c81\u65b0\u82cf\u6d59\u8d63\u9102\u6842\u7518\u664b\u8499\u9655\u5409\u95fd\u8d35\u7ca4\u5ddd\u9752\u85cf\u743c\u5b81")
+_LETTERS = set("ABCDEFGHJKLMNPQRSTUVWXYZ")
+_DIGITS = set("0123456789")
+_VALID_CHARS = _PROVINCES | _LETTERS | _DIGITS
 
 
-def _load_model():
-    """懒加载 SVM 模型 + label 映射（模块级缓存）。"""
-    global _model, _label_map
-    if _model is not None:
-        return
-
-    if not _MODEL_PATH.exists():
-        logger.warning("SVM 模型文件不存在: %s，使用占位", _MODEL_PATH)
-        return
-
-    with open(_MODEL_PATH, "rb") as f:
-        _model = pickle.load(f)
-    logger.info("SVM 模型已加载: %s", _MODEL_PATH)
-
-    if _LABELS_PATH.exists():
-        with open(_LABELS_PATH, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-        _label_map = {int(k): v for k, v in raw.items()}
-        logger.info("Label 映射已加载: %d 类", len(_label_map))
+def _init_tesseract():
+    if os.path.exists(_TESSERACT_CMD):
+        pytesseract.pytesseract.tesseract_cmd = _TESSERACT_CMD
+    if _TESSDATA_DIR.exists():
+        os.environ["TESSDATA_PREFIX"] = str(_TESSDATA_DIR.resolve())
 
 
-def _extract_hog(image: np.ndarray) -> np.ndarray:
-    """从 32x32 灰度图提取 HOG 特征。"""
-    return _hog.compute(image).flatten().astype(np.float32).reshape(1, -1)
+_init_tesseract()
 
 
-def tool_svm_predict(image_path: str) -> dict:
-    """使用 SVM 分类器识别单个车牌字符。
+def tool_tesseract_ocr(image_path: str) -> dict:
+    _debug = []
+    _debug.append(f"TESSDATA_PREFIX={os.environ.get('TESSDATA_PREFIX', 'NOT SET')}")
+    _debug.append(f"TESSDATA_DIR={_TESSDATA_DIR.resolve()}")
+    _debug.append(f"TESSDATA exists={_TESSDATA_DIR.exists()}")
+    _debug.append(f"TESSERACT_CMD exists={os.path.exists(_TESSERACT_CMD)}")
 
-    对分割后的字符图像提取 HOG 特征，使用预训练的
-    支持向量机模型进行分类识别。模型支持汉字、字母和数字。
+    if not os.path.exists(image_path):
+        return {"status": "error", "message": f"图像不存在: {image_path}"}
 
-    Args:
-        image_path: 单个字符的图像路径
-    Returns:
-        dict: {"status": "ok", "char": 识别出的字符,
-               "confidence": 置信度(0~1), "needs_verify": 是否需要LLM复核}
-    """
-    # 懒加载模型
-    _load_model()
-
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if img is None:
-        return {"status": "error", "message": f"无法读取图像: {image_path}"}
-
-    # 统一大小
-    img = cv2.resize(img, (32, 32))
-
-    # 模型未加载 → 占位模式（训练前兼容）
-    if _model is None:
-        return {
-            "status": "ok", "char": "?",
-            "confidence": 0.0, "needs_verify": True,
-        }
-
-    # 提取 HOG 特征
-    features = _extract_hog(img)
-
-    # SVM 预测（含概率）
     try:
-        char_id = _model.predict(features)[0]
-        probs = _model.predict_proba(features)[0]
-        confidence = float(np.max(probs))
-        char = _label_map.get(int(char_id), "?")
-    except Exception as e:
-        logger.warning("SVM 预测失败: %s", e)
+        img = Image.open(image_path)
+        config = "--psm 7"
+        raw_text = pytesseract.image_to_string(img, lang="chi_sim+eng", config=config).strip()
+
+        _debug.append(f"raw_text len={len(raw_text)}")
+        _debug.append(f"raw_text codepoints={[hex(ord(c)) for c in raw_text]}")
+        _debug.append(f"_PROVINCES len={len(_PROVINCES)}")
+        _debug.append(f"_PROVINCES sample codepoints={[hex(ord(c)) for c in list(_PROVINCES)[:3]]}")
+
+        for i, c in enumerate(raw_text):
+            _debug.append(f"char[{i}] U+{ord(c):04X} in_valid={c in _VALID_CHARS}")
+
+        filtered = "".join(c for c in raw_text if c in _VALID_CHARS)
+        _debug.append(f"filtered={repr(filtered)}")
+
+        data = pytesseract.image_to_data(img, lang="chi_sim+eng", config=config, output_type=pytesseract.Output.DICT)
+        chars = []
+        for i, text in enumerate(data["text"]):
+            t = text.strip()
+            conf_val = int(data["conf"][i])
+            if t and conf_val > 0:
+                filtered_t = "".join(c for c in t if c in _VALID_CHARS)
+                if filtered_t:
+                    chars.append({"char": filtered_t, "confidence": round(conf_val / 100.0, 4)})
+
+        if chars:
+            avg_conf = round(sum(c["confidence"] for c in chars) / len(chars), 4)
+        else:
+            avg_conf = 0.0
+
+        plate_number = filtered if filtered else raw_text
+        plate_number = plate_number.replace(" ", "")
+
         return {
-            "status": "ok", "char": "?",
-            "confidence": 0.0, "needs_verify": True,
+            "status": "ok",
+            "plate_number": plate_number,
+            "raw_ocr": raw_text,
+            "chars": chars,
+            "avg_confidence": avg_conf,
+            "char_count": len(chars),
+            "_debug": _debug,
         }
-
-    needs_verify = confidence < 0.85
-
-    return {
-        "status": "ok",
-        "char": char,
-        "confidence": round(confidence, 4),
-        "needs_verify": needs_verify,
-    }
+    except Exception as e:
+        logger.exception("Tesseract OCR failed: %s", e)
+        return {"status": "error", "message": str(e), "_debug": _debug}
 
 
-def tool_llm_verify(char_image_path: str, svm_result: dict) -> dict:
-    """使用大语言模型对低置信度 SVM 识别结果进行二次校验。
+def tool_svm_predict(image_path):
+    logger.warning("tool_svm_predict deprecated, use tool_tesseract_ocr")
+    return {"status": "error", "char": "?", "confidence": 0.0, "needs_verify": True}
 
-    当 SVM 置信度低于 0.85 时触发，将字符图片发送给
-    DeepSeek 视觉模型进行复核，返回最终判定结果。
 
-    Args:
-        char_image_path: 字符图片路径
-        svm_result: SVM 的初识别结果 {"char": str, "confidence": float}
-    Returns:
-        dict: {"status": "ok", "final_char": 最终字符,
-               "svm_char": SVM结果, "verified": bool}
-    """
-    svm_char = svm_result.get("char", "?")
-    svm_conf = svm_result.get("confidence", 0.0)
-
-    # LLM 校验逻辑由 LlmAgent 的 tool calling 机制自动处理
-    # 此处返回 SVM 结果作为兜底
-    return {
-        "status": "ok",
-        "final_char": svm_char,
-        "svm_char": svm_char,
-        "llm_char": svm_char,
-        "verified": svm_conf >= 0.85,
-    }
+def tool_llm_verify(char_image_path, svm_result):
+    logger.warning("tool_llm_verify deprecated")
+    final_char = svm_result.get("char", "?") if isinstance(svm_result, dict) else "?"
+    return {"final_char": final_char}
