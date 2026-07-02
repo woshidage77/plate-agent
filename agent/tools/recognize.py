@@ -84,12 +84,12 @@ def tool_tesseract_ocr(image_path: str) -> dict:
         return {"status": "error", "message": str(e), "_debug": _debug}
 
 
-def tool_svm_predict(image_path):
+def tool_svm_predict(image_path: str) -> dict:
     logger.warning("tool_svm_predict deprecated, use tool_tesseract_ocr")
     return {"status": "error", "char": "?", "confidence": 0.0, "needs_verify": True}
 
 
-def tool_llm_verify(char_image_path, svm_result):
+def tool_llm_verify(char_image_path: str, svm_result: dict) -> dict:
     logger.warning("tool_llm_verify deprecated")
     final_char = svm_result.get("char", "?") if isinstance(svm_result, dict) else "?"
     return {"final_char": final_char}
