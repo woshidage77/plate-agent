@@ -1,0 +1,149 @@
+version: "3.9"
+
+# ═══════════════════════════════════════════
+# PlateAgent — 7 服务 Docker Compose 编排
+# ═══════════════════════════════════════════
+
+services:
+  # ── 1. Nginx 反向代理 + Vue 静态文件 ──
+  nginx:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/Dockerfile.nginx
+    container_name: plate-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - fastapi
+      - springboot
+    networks:
+      - plate-net
+    restart: unless-stopped
+
+  # ── 2. Python FastAPI + tRPC-Agent ──
+  fastapi:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.fastapi
+    container_name: plate-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHROMA_PERSIST_DIR=/app/chroma_data
+    volumes:
+      - chroma_data:/app/chroma_data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    networks:
+      - plate-net
+    restart: unless-stopped
+
+  # ── 3. Spring Boot 管理后台 ──
+  springboot:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.springboot
+    container_name: plate-springboot
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/plate_agent?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
+      - JWT_SECRET=${JWT_SECRET:-plate-agent-jwt-secret-key-2024}
+      - PLATE_AGENT_API_BASE_URL=http://fastapi:8000/api
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - plate-net
+    restart: unless-stopped
+
+  # ── 4. Redis — Session + 缓存 ──
+  redis:
+    image: redis:7-alpine
+    container_name: plate-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - plate-net
+    restart: unless-stopped
+
+  # ── 5. MySQL — 识别记录持久化 ──
+  mysql:
+    image: mysql:8.0
+    container_name: plate-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: plate_agent
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - plate-net
+    restart: unless-stopped
+
+  # ── 6. ChromaDB — 向量知识库 ──
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: plate-chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    networks:
+      - plate-net
+    restart: unless-stopped
+
+  # ── 7. RabbitMQ — 异步通知（可选） ──
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: plate-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - plate-net
+    restart: unless-stopped
+
+# ── 持久化卷 ──
+volumes:
+  redis_data:
+  mysql_data:
+  chroma_data:
+  rabbitmq_data:
+
+# ── 网络 ──
+networks:
+  plate-net:
+    driver: bridge

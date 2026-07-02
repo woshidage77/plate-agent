@@ -1,0 +1,31 @@
+﻿server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3307/plate_agent?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: ${MYSQL_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:plate-agent-jwt-secret-key-2024-min-length-256}
+  expiration: 86400000  # 24h
+
+# Python Agent service
+plate-agent:
+  api:
+    base-url: http://localhost:8000/api
+
+logging:
+  level:
+    com.plateagent: DEBUG
