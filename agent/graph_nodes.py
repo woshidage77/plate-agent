@@ -1,7 +1,10 @@
 """PlateAgent Graph nodes - 6-node pipeline + Tesseract OCR v2"""
 import asyncio
 import logging
+import os
 from typing import Any, Dict
+
+import cv2
 
 from trpc_agent_sdk.dsl.graph import (
     STATE_KEY_LAST_RESPONSE,
@@ -29,7 +32,6 @@ from .tools.knowledge import tool_search_blacklist, tool_lookup_confusion
 logger = logging.getLogger(__name__)
 
 
-# Preprocess
 @trace_node("preprocess")
 async def preprocess_node(state: PlateState, async_writer: AsyncEventWriter) -> Dict[str, Any]:
     img = state.get("image_path", "")
@@ -60,7 +62,6 @@ async def preprocess_node(state: PlateState, async_writer: AsyncEventWriter) -> 
     return {"preprocess_output": current_path}
 
 
-# Locate
 @trace_node("locate")
 async def locate_node(state: PlateState, async_writer: AsyncEventWriter) -> Dict[str, Any]:
     image_path = state.get("preprocess_output", "")
@@ -92,7 +93,6 @@ async def locate_node(state: PlateState, async_writer: AsyncEventWriter) -> Dict
     return {"locate_output": locate_output}
 
 
-# Segment
 @trace_node("segment")
 async def segment_node(state: PlateState, async_writer: AsyncEventWriter) -> Dict[str, Any]:
     image_path = state.get("locate_output", "")
@@ -111,25 +111,76 @@ async def segment_node(state: PlateState, async_writer: AsyncEventWriter) -> Dic
     return {"segment_chars": char_images}
 
 
-# Recognize (v2: Tesseract OCR on ORIGINAL image, not preprocessed plate)
+def _make_blurred_copy(image_path: str) -> str:
+    """Create a lightly blurred copy for OCR (helps with some plate fonts)."""
+    img = cv2.imread(image_path)
+    if img is None:
+        return image_path
+    blurred = cv2.GaussianBlur(img, (5, 5), 0)
+    base, ext = os.path.splitext(image_path)
+    out = f"{base}_ocr_blur.jpg"
+    cv2.imwrite(out, blurred)
+    return out
+
+
 @trace_node("recognize")
 async def recognize_node(state: PlateState, async_writer: AsyncEventWriter) -> Dict[str, Any]:
-    # Use the ORIGINAL image for OCR, not the preprocessed locate output.
-    # The preprocessing chain (especially Canny edge detection) degrades
-    # Chinese characters, making Tesseract unable to read them.
     original_image = state.get("image_path", "")
     if not original_image:
         return {"recognize_chars": [], "needs_llm_verify": False,
                 STATE_KEY_LAST_RESPONSE: "Error: no image path"}
 
-    await async_writer.write_text("[Recognize] Tesseract OCR on original image...\n")
+    await async_writer.write_text("[Recognize] Tesseract OCR (dual-pass)...\n")
 
-    ocr_result = tool_tesseract_ocr(original_image)
+    # Pass 1: OCR on original image
+    result1 = tool_tesseract_ocr(original_image)
+
+    # Pass 2: OCR on lightly blurred copy (helps with certain plate fonts)
+    blurred_path = _make_blurred_copy(original_image)
+    result2 = tool_tesseract_ocr(blurred_path)
+
+    # Pick the better result: prefer longer plate_number (more chars recognized),
+    # then higher confidence as tiebreaker
+    plate1 = result1.get("plate_number", "")
+    plate2 = result2.get("plate_number", "")
+    conf1 = result1.get("avg_confidence", 0)
+    conf2 = result2.get("avg_confidence", 0)
+
+    ok1 = result1.get("status") == "ok"
+    ok2 = result2.get("status") == "ok"
+
+    if ok2 and ok1:
+        if len(plate2) > len(plate1):
+            ocr_result = result2
+            source = "blurred"
+        elif len(plate1) > len(plate2):
+            ocr_result = result1
+            source = "original"
+        elif conf2 > conf1:
+            ocr_result = result2
+            source = "blurred"
+        else:
+            ocr_result = result1
+            source = "original"
+    elif ok2:
+        ocr_result = result2
+        source = "blurred"
+    else:
+        ocr_result = result1
+        source = "original"
+
+    await async_writer.write_text(f"  Using {source} (len: {len(plate1)}/{len(plate2)}, conf: {conf1:.2%}/{conf2:.2%})\n")
+
+    # Clean up temp file
+    try:
+        os.remove(blurred_path)
+    except Exception:
+        pass
 
     if ocr_result.get("status") != "ok":
         await async_writer.write_text(f"[Recognize] OCR failed: {ocr_result.get('message', '')}\n")
         return {"recognize_chars": [], "needs_llm_verify": False,
-                "final_plate": ocr_result.get("plate_number", "?")}
+                "final_plate": "?"}
 
     plate_number = ocr_result.get("plate_number", "")
     avg_conf = ocr_result.get("avg_confidence", 0.0)
@@ -163,7 +214,6 @@ async def recognize_node(state: PlateState, async_writer: AsyncEventWriter) -> D
     }
 
 
-# Human review
 @trace_node("human_review")
 async def human_review_node(state: PlateState, async_writer: AsyncEventWriter) -> Dict[str, Any]:
     recognize_chars = state.get("recognize_chars", [])
@@ -201,7 +251,6 @@ async def human_review_node(state: PlateState, async_writer: AsyncEventWriter) -
     }
 
 
-# LLM verify
 @trace_node("llm_verify")
 async def llm_verify_node(state: PlateState, async_writer: AsyncEventWriter) -> Dict[str, Any]:
     recognize_chars = state.get("recognize_chars", [])
@@ -247,7 +296,6 @@ async def llm_verify_node(state: PlateState, async_writer: AsyncEventWriter) -> 
     return {"final_plate": plate}
 
 
-# Format output
 @trace_node("format_output")
 async def format_output_node(state: PlateState, async_writer: AsyncEventWriter) -> Dict[str, Any]:
     plate = state.get("final_plate", "")
