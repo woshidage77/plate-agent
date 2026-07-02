@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="agent-lab">
     <h2>AI 实验室</h2>
     <p class="subtitle">基于 tRPC-Agent 的 6 节点识别流水线 + 多轮对话</p>
@@ -101,20 +101,12 @@
 import { ref, computed, nextTick, onMounted } from 'vue'
 
 const testImages = ref([])
-onMounted(async () => {
-  try {
-    const r = await fetch('/test_images/')
-    const text = await r.text()
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(text, 'text/html')
-    const links = [...doc.querySelectorAll('a')]
-    testImages.value = links
-      .map(l => l.getAttribute('href'))
-      .filter(h => h && /\.(jpg|png|jpeg)$/i.test(h))
-      .map(h => decodeURIComponent(h.replace(/^\//, '').replace('test_images/', '')))
-  } catch {
-    testImages.value = ['synth_plate.jpg', 'plate_001.jpg', 'plate_002.jpg']
+onMounted(() => {
+  const imgs = []
+  for (let i = 1; i <= 30; i++) {
+    imgs.push('plate_' + String(i).padStart(3, '0') + '.jpg')
   }
+  testImages.value = imgs
 })
 
 const selectedImage = ref('')
